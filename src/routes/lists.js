@@ -17,7 +17,7 @@ function pageQuery(query) {
 }
 
 // Request bodies are validated by the backend, the single owner of the rules.
-function createListsRouter({ backend, listService }) {
+function createListsRouter({ backend, listService, categorizeService }) {
     const router = express.Router();
 
     router.get('/', async (req, res) => {
@@ -42,6 +42,12 @@ function createListsRouter({ backend, listService }) {
     router.delete('/:listId', async (req, res) => {
         await backend.deleteList(req.token, parseId(req.params.listId, 'listId'));
         res.status(204).end();
+    });
+
+    // Categorize button: departments for the items that have no category yet
+    router.post('/:listId/categorize', async (req, res) => {
+        const listId = parseId(req.params.listId, 'listId');
+        res.json({ data: await categorizeService.categorizeList(req.token, listId) });
     });
 
     router.post('/:listId/items', async (req, res) => {

@@ -9,7 +9,7 @@ touches the database.
 
 ## Status
 
-Done: authentication and the list flow. Not implemented yet: categorize and Telegram share.
+Done: authentication, the list flow and categorize. Not implemented yet: Telegram share.
 
 ## Endpoints
 
@@ -26,6 +26,28 @@ All under `/api/v1` need a bearer token. Bodies are validated by the backend, wh
 | PATCH / DELETE | `/api/v1/lists/{listId}` | backend |
 | POST | `/api/v1/lists/{listId}/items` | backend, body `{ "item_name", "category"?, "quantity"? }` |
 | PATCH / DELETE | `/api/v1/lists/{listId}/items/{itemId}` | backend |
+| POST | `/api/v1/lists/{listId}/categorize` | backend, categorizer, backend (see below) |
+| GET | `/api/v1/departments` | categorizer: the 8 departments for the manual dropdown |
+
+### Categorize
+
+The Categorize button. The orchestrator reads all the items of the list, sends **only those
+with no category** to the categorizer `/categorize` (batches of 200, answers matched by
+position), then saves each answer with a `PATCH` on the item (5 in parallel). Items that
+already have a category, guessed before or set by the user, are never touched, so pressing the
+button again only handles the items added since.
+
+```json
+{ "data": {
+    "items": [ ...all the items of the list, updated... ],
+    "summary": { "categorized": 2, "skipped": 1, "failed": [
+        { "item_id": 1, "item_name": "milk", "category": "Dairy", "error": "..." } ] } } }
+```
+
+If the categorizer fails nothing is written (`503`/`502`). The backend has no multi-item
+transaction, so a failed save does not undo the others: it is listed in `failed` and the
+answer is still `200`; pressing the button again retries it. Names longer than 200 characters
+are truncated only for the classification.
 
 Ids must be positive integers, otherwise `400` before calling the backend. Downstream
 failures: service unreachable or timed out `503`; unexpected answer, or the backend refusing a

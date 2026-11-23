@@ -4,17 +4,22 @@ const rateLimit = require('express-rate-limit');
 const { loadConfig } = require('./config');
 const { createSsoClient } = require('./clients/ssoClient');
 const { createBackendClient } = require('./clients/backendClient');
+const { createCategorizerClient } = require('./clients/categorizerClient');
 const { createListService } = require('./services/listService');
+const { createCategorizeService } = require('./services/categorizeService');
 const { authenticate } = require('./middleware/authenticate');
 const { errorHandler } = require('./middleware/errorHandler');
 const { createApiRouter } = require('./routes/api');
 
 // Dependencies can be replaced (tests inject fake clients).
-function createApp({ config = loadConfig(), ssoClient, backendClient } = {}) {
+function createApp({ config = loadConfig(), ssoClient, backendClient, categorizerClient } = {}) {
     const sso = ssoClient || createSsoClient({ baseUrl: config.ssoUrl, timeoutMs: config.timeoutMs });
     const backend = backendClient
         || createBackendClient({ baseUrl: config.backendUrl, timeoutMs: config.timeoutMs });
+    const categorizer = categorizerClient
+        || createCategorizerClient({ baseUrl: config.categorizerUrl, timeoutMs: config.timeoutMs });
     const listService = createListService({ backend });
+    const categorizeService = createCategorizeService({ backend, categorizer });
     const app = express();
 
     app.use(rateLimit({
@@ -32,7 +37,7 @@ function createApp({ config = loadConfig(), ssoClient, backendClient } = {}) {
     app.use(express.json());
 
     app.get('/health', (req, res) => res.json({ status: 'ok' }));
-    app.use('/api/v1', authenticate(sso), createApiRouter({ backend, listService }));
+    app.use('/api/v1', authenticate(sso), createApiRouter({ backend, categorizer, listService, categorizeService }));
 
     app.use((req, res) => res.status(404).json({ error: 'Route not found.' }));
     app.use(errorHandler);
