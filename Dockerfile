@@ -3,5 +3,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --omit=dev
 COPY . .
+# Unprivileged user provided by the node image
+USER node
 EXPOSE 8004
 CMD ["npm", "start"]
