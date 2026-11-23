@@ -9,7 +9,8 @@ touches the database.
 
 ## Status
 
-Done: authentication, the list flow and categorize. Not implemented yet: Telegram share.
+Done: authentication, lists, categorize and Telegram share. The orchestrator composes the SSO
+service, the backend, the categorizer and the Telegram adapter.
 
 ## Endpoints
 
@@ -19,7 +20,9 @@ All under `/api/v1` need a bearer token. Bodies are validated by the backend, wh
 | Method | Path | Composes |
 |---|---|---|
 | GET | `/health` | none (no token) |
-| GET | `/api/v1/me` | SSO: the identity of the token |
+| GET | `/api/v1/me` | SSO identity of the token, plus `telegram_chat_id` from the backend |
+| PUT | `/api/v1/me/telegram` | backend: saves `{ "chat_id": "123456789" }` (the id the bot sent) |
+| DELETE | `/api/v1/me/telegram` | backend: unlinks Telegram |
 | GET | `/api/v1/lists?limit=&offset=` | backend |
 | POST | `/api/v1/lists` | backend, body `{ "list_name": "..." }` |
 | GET | `/api/v1/lists/{listId}` | backend: the list and **all** its items, read in parallel |
@@ -28,6 +31,7 @@ All under `/api/v1` need a bearer token. Bodies are validated by the backend, wh
 | PATCH / DELETE | `/api/v1/lists/{listId}/items/{itemId}` | backend |
 | POST | `/api/v1/lists/{listId}/categorize` | backend, categorizer, backend (see below) |
 | GET | `/api/v1/departments` | categorizer: the 8 departments for the manual dropdown |
+| POST | `/api/v1/lists/{listId}/share/telegram` | backend, categorizer, Telegram adapter (see below) |
 
 ### Categorize
 
@@ -48,6 +52,28 @@ If the categorizer fails nothing is written (`503`/`502`). The backend has no mu
 transaction, so a failed save does not undo the others: it is listed in `failed` and the
 answer is still `200`; pressing the button again retries it. Names longer than 200 characters
 are truncated only for the classification.
+
+### Share on Telegram
+
+Reads in parallel the user's profile (`telegram_chat_id`), the list and all its items; builds
+the text with the categorizer `/summary` (grouped by the **saved** category, no guessing:
+items without one, or with a category that is not one of the 8 departments, go under
+`Other`); replaces the generic title with the list name; sends it with the Telegram adapter.
+
+```json
+{ "data": { "list_id": 7, "messages_sent": 1, "total_items": 2,
+            "departments": [ { "department": "Dairy", "item_count": 1 } ] } }
+```
+
+| Status | Meaning |
+|---|---|
+| `409` | Telegram not linked: the user must send `/start` to the bot and save the chat id |
+| `422` | Empty list, or chat not reachable (wrong id, Start never pressed, bot blocked) |
+| `503` | Adapter, categorizer or Telegram unavailable, or bot token missing |
+
+Linking: the user sends `/start` to the bot, which answers with the chat id; the frontend saves
+it with `PUT /api/v1/me/telegram`. **Pending:** `db-backend` does not accept
+`telegram_chat_id` in `PATCH /auth/me` yet, so saving answers `400` until it does.
 
 Ids must be positive integers, otherwise `400` before calling the backend. Downstream
 failures: service unreachable or timed out `503`; unexpected answer, or the backend refusing a
@@ -79,6 +105,7 @@ Copy `.env.example` to `.env`.
 | `SSO_URL` | `http://localhost:8002` | `grocery-sso-service` |
 | `BACKEND_URL` | `http://localhost:8080` | Backend (`db-backend` for now) |
 | `CATEGORIZER_URL` | `http://localhost:8003` | `grocery-categorizer` |
+| `TELEGRAM_ADAPTER_URL` | `http://localhost:8005` | `grocery-telegram-adapter` |
 | `REQUEST_TIMEOUT_MS` | `5000` | Timeout of each downstream call |
 
 ## Development

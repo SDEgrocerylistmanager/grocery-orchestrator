@@ -1,14 +1,15 @@
 const express = require('express');
 const { createListsRouter } = require('./lists');
+const { createMeRouter } = require('./me');
 
 // Routes behind authentication.
-function createApiRouter({ backend, categorizer, listService, categorizeService }) {
+function createApiRouter({ backend, categorizer, listService, categorizeService, shareService }) {
     const router = express.Router();
 
-    router.get('/me', (req, res) => res.json({ data: req.user }));
+    router.use('/me', createMeRouter({ backend }));
     // Departments for the manual category dropdown
     router.get('/departments', async (req, res) => res.json({ data: await categorizer.departments() }));
-    router.use('/lists', createListsRouter({ backend, listService, categorizeService }));
+    router.use('/lists', createListsRouter({ backend, listService, categorizeService, shareService }));
 
     return router;
 }

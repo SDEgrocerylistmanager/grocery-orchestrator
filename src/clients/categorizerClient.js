@@ -35,10 +35,28 @@ function createCategorizerClient({ baseUrl, timeoutMs, fetchImpl = fetch }) {
         return results;
     }
 
-    return {
-        categorize,
-        departments: () => call('GET', '/departments'),
-    };
+    // The 8 departments never change while the categorizer runs: read them once.
+    let departmentsCache = null;
+    async function departments() {
+        if (!departmentsCache) departmentsCache = await call('GET', '/departments');
+        return departmentsCache;
+    }
+
+    // items: [{ name, quantity, category }] -> { departments, total_items, text }.
+    // Pure formatting by the saved category. The categorizer rejects the whole request for a
+    // category that is not one of its departments, so those are sent as null (they go to Other).
+    async function summary(items) {
+        const known = new Set(await departments());
+        return call('POST', '/summary', {
+            items: items.map((item) => ({
+                name: item.name.slice(0, MAX_NAME),
+                quantity: Number(item.quantity ?? 1),
+                category: known.has(item.category) ? item.category : null,
+            })),
+        });
+    }
+
+    return { categorize, departments, summary };
 }
 
 module.exports = { createCategorizerClient, BATCH_SIZE, MAX_NAME };

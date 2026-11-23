@@ -17,7 +17,7 @@ function pageQuery(query) {
 }
 
 // Request bodies are validated by the backend, the single owner of the rules.
-function createListsRouter({ backend, listService, categorizeService }) {
+function createListsRouter({ backend, listService, categorizeService, shareService }) {
     const router = express.Router();
 
     router.get('/', async (req, res) => {
@@ -48,6 +48,12 @@ function createListsRouter({ backend, listService, categorizeService }) {
     router.post('/:listId/categorize', async (req, res) => {
         const listId = parseId(req.params.listId, 'listId');
         res.json({ data: await categorizeService.categorizeList(req.token, listId) });
+    });
+
+    // Share on Telegram: the list grouped by department, sent to the user's chat
+    router.post('/:listId/share/telegram', async (req, res) => {
+        const listId = parseId(req.params.listId, 'listId');
+        res.json({ data: await shareService.shareList(req.token, listId) });
     });
 
     router.post('/:listId/items', async (req, res) => {

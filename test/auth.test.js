@@ -7,8 +7,11 @@ const { HttpError } = require('../src/httpError');
 
 const user = { id: 'sub-1', username: 'anna', email: 'anna@example.com', exp: 4102444800 };
 
+// /me also reads the profile kept by the backend
+const backendClient = { getMe: async () => ({ id: 'sub-1', telegram_chat_id: null }) };
+
 function appWith(verify) {
-    return createApp({ ssoClient: { verify } });
+    return createApp({ ssoClient: { verify }, backendClient });
 }
 
 test('health does not need a token', async () => {

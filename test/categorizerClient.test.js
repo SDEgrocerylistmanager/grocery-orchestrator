@@ -54,3 +54,21 @@ test('departments', async () => {
     const fetchImpl = async () => new Response(JSON.stringify(['Produce', 'Other']), { status: 200 });
     assert.deepEqual(await client(fetchImpl).departments(), ['Produce', 'Other']);
 });
+
+test('summary sends unknown categories as null and reads departments once', async () => {
+    const calls = [];
+    const fetchImpl = async (url, options) => {
+        calls.push({ url, body: options.body && JSON.parse(options.body) });
+        if (url.endsWith('/departments')) return new Response(JSON.stringify(['Dairy', 'Other']), { status: 200 });
+        return new Response(JSON.stringify({ departments: [], total_items: 2, text: 't' }), { status: 200 });
+    };
+    const c = client(fetchImpl);
+    await c.summary([{ name: 'milk', quantity: '2.00', category: 'Dairy' }, { name: 'x', quantity: '1', category: 'Snacks' }]);
+    await c.summary([{ name: 'milk', quantity: '1', category: 'Dairy' }]);
+
+    assert.equal(calls.filter((c) => c.url.endsWith('/departments')).length, 1);
+    assert.deepEqual(calls[1].body.items, [
+        { name: 'milk', quantity: 2, category: 'Dairy' },
+        { name: 'x', quantity: 1, category: null },
+    ]);
+});

@@ -10,6 +10,7 @@ function loadConfig(env = process.env) {
         ssoUrl: trimSlash(env.SSO_URL || 'http://localhost:8002'),
         backendUrl: trimSlash(env.BACKEND_URL || 'http://localhost:8080'),
         categorizerUrl: trimSlash(env.CATEGORIZER_URL || 'http://localhost:8003'),
+        telegramAdapterUrl: trimSlash(env.TELEGRAM_ADAPTER_URL || 'http://localhost:8005'),
     };
 }
 

@@ -36,6 +36,9 @@ function createBackendClient({ baseUrl, timeoutMs, fetchImpl = fetch }) {
     }
 
     return {
+        getMe: async (token) => (await call('GET', '/auth/me', { token })).data,
+        updateMe: (token, body) => call('PATCH', '/auth/me', { token, body }),
+
         listLists: (token, query) => call('GET', '/lists', { token, query }),
         createList: (token, body) => call('POST', '/lists', { token, body }),
         getList: async (token, listId) => (await call('GET', `/lists/${listId}`, { token })).data,
